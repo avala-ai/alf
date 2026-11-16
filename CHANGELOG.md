@@ -1,10 +1,16 @@
 # Changelog
 
-## 0.1.0 — 2026-08-26
+## 0.1.0 — 2026-11-16
 
 First standalone release of ALF as its own repository.
 
 ### Added
+
+- **`decodeSingleGzipMember` is public in Dart**, together with
+  `gzipInputOverheadAllowance`. Byte-oriented consumers can reuse the strict,
+  bounded single-member decoder without importing a private `src/` path or
+  reimplementing gzip validation. An export only: the checks, the decoded
+  budget and the stored bytes are unchanged.
 
 - **`read_alf_header` in Rust**, which completes the header-only row of the
   support matrix. `read_alf_header_bytes` parses an envelope without inflating
@@ -28,6 +34,12 @@ First standalone release of ALF as its own repository.
   they agree on every header-scoped rule by construction.
 
 ### Changed
+
+- **The Dart package requires `archive` below 4.6.0.** From 4.6.0 that package
+  buffers inflate output before a non-memory sink sees it, so the bounded
+  prefix inflater would materialize the whole member before its stop signal
+  ran. The range is `>=4.0.7 <4.6.0` until the inflater no longer depends on
+  that behavior.
 
 - **The Rust crate can be bootstrapped on crates.io from a reviewed commit.**
   Removing Cargo's `publish = false` kill switch does not publish anything; it

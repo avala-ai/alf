@@ -2,6 +2,13 @@
 
 ## 0.1.0
 
+- Export `decodeSingleGzipMember` and `gzipInputOverheadAllowance` from the
+  public library, so byte-oriented consumers can reuse the strict, bounded
+  single-member gzip decoder.
+
+- Require `archive` `>=4.0.7 <4.6.0`. Later versions buffer inflate output
+  before the sink sees it, which defeats the bounded prefix inflater.
+
 - Preserve exact counts beyond signed 64-bit range. `totalPoints` and
   `sourceTotalPoints` return `num`; native-sized counts still return `int`, and
   wider counts remain integral doubles. `writeAlx` accepts a `num` source count
