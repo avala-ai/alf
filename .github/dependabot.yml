@@ -12,6 +12,12 @@ updates:
   # `typescript/alf` resolves with Bun, which dependabot does not support. Its one
   # runtime dependency is pinned exactly (`pako`) and the lockfile is committed, so
   # bumping it is a deliberate pull request rather than an unwatched drift.
+  # archive 4.6.0 and later buffer inflate output before the sink sees it, which
+  # defeats the bounded prefix inflater. `dart/alf/pubspec.yaml` caps the range
+  # below 4.6.0; the ignore keeps dependabot from proposing to widen it.
   - package-ecosystem: pub
     directory: /dart/alf
     schedule: { interval: monthly }
+    ignore:
+      - dependency-name: archive
+        versions: [">=4.6.0"]
