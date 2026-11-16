@@ -34,7 +34,7 @@ Specification = "https://alf.dev/spec/format/"
 # and a lower bound does not do that — CI installs this extra fresh every run.
 # pytest keeps a lower bound: it gates nothing, it only runs the tests. PyYAML
 # is exact because CI policy relies on its workflow-resolution semantics.
-dev = ["pytest>=9.1.1", "PyYAML==6.0.3", "ruff==0.17.3"]
+dev = ["pytest>=9.1.1", "PyYAML==6.0.3", "ruff==0.17.5"]
 
 [tool.setuptools.packages.find]
 where = ["python"]
