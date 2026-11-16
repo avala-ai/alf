@@ -1,0 +1,4 @@
+{
+  "refused": "header-not-json",
+  "why": "A recorded geometry error outside finite binary64 is malformed metadata even when an empty payload has no reconstruction error to report."
+}

@@ -1,0 +1,4 @@
+{
+  "refused": "total-points-not-an-integer",
+  "why": "A reserved count that overflows binary64 keeps its count-domain refusal instead of being misclassified as generic malformed metadata."
+}

@@ -1,0 +1,4 @@
+{
+  "refused": "header-too-large",
+  "why": "A complete valid-JSON header above the 10,000,000-byte ceiling must be refused before parsers allocate another hostile copy."
+}

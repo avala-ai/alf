@@ -1,0 +1,9 @@
+# The website's generated output. It is not committed, and `prettier --check .`
+# would otherwise walk a few thousand emitted files to say nothing useful.
+website/build/
+website/.docusaurus/
+website/node_modules/
+
+# Generated conformance expectations. `generate.py` owns their formatting, and a
+# formatter that reflowed them would fight the determinism gate.
+tests/conformance/data/

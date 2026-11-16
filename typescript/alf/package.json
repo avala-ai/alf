@@ -1,0 +1,49 @@
+{
+  "name": "@avala-ai/alf",
+  "version": "0.1.0",
+  "description": "ALF — Arrays in Local Frames TypeScript codec",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/avala-ai/alf.git",
+    "directory": "typescript/alf"
+  },
+  "homepage": "https://alf.dev",
+  "type": "module",
+  "files": [
+    "dist",
+    "CHANGELOG.md",
+    "NOTICE"
+  ],
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "lint": "tsc -p tsconfig.json --noEmit --noUnusedLocals --noUnusedParameters",
+    "prepack": "bun run build",
+    "test": "bun test"
+  },
+  "keywords": [
+    "point-cloud",
+    "lidar",
+    "annotation",
+    "fixed-point"
+  ],
+  "license": "Apache-2.0",
+  "dependencies": {
+    "pako": "2.1.0"
+  },
+  "devDependencies": {
+    "@types/bun": "^1.2.0",
+    "@types/pako": "2.0.4",
+    "typescript": "^5.7.0"
+  }
+}

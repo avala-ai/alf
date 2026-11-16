@@ -1,0 +1,4 @@
+{
+  "refused": "payload-length-mismatch",
+  "why": "Multiplying this declared count by the four-byte stride wraps to zero in signed 64-bit arithmetic, accepting an empty sidecar as trillions of entries and breaking channel correlation."
+}

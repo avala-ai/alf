@@ -1,0 +1,4 @@
+{
+  "refused": "geom-offset-malformed",
+  "why": "A scalar or 2-vector offset broadcasts across axes and yields a uniformly shifted cloud rather than an error."
+}

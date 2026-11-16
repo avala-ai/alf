@@ -1,0 +1,4 @@
+{
+  "refused": "kept-index-duplicate",
+  "why": "A repeated source index maps two labelled points to the same raw point while another kept point has no mapping."
+}

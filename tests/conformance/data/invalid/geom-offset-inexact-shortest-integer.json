@@ -1,0 +1,4 @@
+{
+  "refused": "geom-number-inexact",
+  "why": "An integer token can equal binary64's shortest decimal spelling while still naming a different exact integer and therefore a different coordinate grid."
+}

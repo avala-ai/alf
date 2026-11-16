@@ -1,0 +1,4 @@
+{
+  "refused": "total-points-not-an-integer",
+  "why": "A present null count is malformed; treating it as legacy absence disables the cross-channel length check."
+}

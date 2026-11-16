@@ -1,0 +1,4 @@
+{
+  "refused": "codec-version-disagreement",
+  "why": "A writer that set the header key and forgot the wire byte. Resolving the disagreement by picking a side decodes to plausible garbage either way."
+}

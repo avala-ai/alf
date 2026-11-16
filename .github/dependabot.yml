@@ -1,0 +1,17 @@
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule: { interval: monthly }
+  - package-ecosystem: pip
+    directory: /
+    schedule: { interval: monthly }
+  - package-ecosystem: cargo
+    directory: /rust/alf
+    schedule: { interval: monthly }
+  # `typescript/alf` resolves with Bun, which dependabot does not support. Its one
+  # runtime dependency is pinned exactly (`pako`) and the lockfile is committed, so
+  # bumping it is a deliberate pull request rather than an unwatched drift.
+  - package-ecosystem: pub
+    directory: /dart/alf
+    schedule: { interval: monthly }

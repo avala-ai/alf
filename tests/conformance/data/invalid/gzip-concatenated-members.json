@@ -1,0 +1,4 @@
+{
+  "refused": "multiple-gzip-members",
+  "why": "Concatenated members decode into one byte run, so the second file's envelope becomes the first one's payload."
+}

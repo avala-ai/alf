@@ -1,0 +1,118 @@
+/**
+ * Site-wide styling. Everything here is local: no font, stylesheet or script is
+ * fetched from a third party, so the site works offline and behind a proxy and
+ * loads nothing the reader did not ask for.
+ */
+
+/**
+ * Lexend Deca, self-hosted. Variable font (weight 100-900), split by script the
+ * same way the foundry distributes it, so a latin page downloads one file.
+ * SIL Open Font License 1.1 — see static/fonts/OFL.txt.
+ */
+@font-face {
+  font-family: "Lexend Deca";
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url("/fonts/lexend-deca-latin.woff2") format("woff2");
+  unicode-range:
+    U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329,
+    U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: "Lexend Deca";
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url("/fonts/lexend-deca-latin-ext.woff2") format("woff2");
+  unicode-range:
+    U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329,
+    U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F,
+    U+A720-A7FF;
+}
+@font-face {
+  font-family: "Lexend Deca";
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url("/fonts/lexend-deca-vietnamese.woff2") format("woff2");
+  unicode-range:
+    U+0102-0103, U+0110-0111, U+0128-0129, U+0168-0169, U+01A0-01A1, U+01AF-01B0, U+0300-0301,
+    U+0303-0304, U+0308-0309, U+0323, U+0329, U+1EA0-1EF9, U+20AB;
+}
+
+:root {
+  /* Avala palette. The neutrals are the ones the 4dgs site uses, so the two read
+     as one family — #101010 ink, #f2e8de canvas (light), #101010 canvas /
+     #ffffff ink (dark) — but the accent here is Avala PURPLE (#a422e1, the
+     `--brand-purple` / `--av-primary-300` token), not 4dgs's cyan.
+
+     Neither end of the scale is the raw brand token, and both departures are
+     contrast: #a422e1 measures 4.46:1 on the cream canvas, just under AA for
+     body text, and 3.53:1 on near-black. So light mode uses a darker cut of the
+     same hue (H 281°, S 76%, L 42% — 5.9:1) and dark mode a lighter one
+     (L 68% — 6.2:1). The brand token itself reappears mid-scale, where it is
+     decoration rather than text. */
+  --ifm-color-primary: #8919bc;
+  --ifm-color-primary-dark: #7b17aa;
+  --ifm-color-primary-darker: #7416a0;
+  --ifm-color-primary-darkest: #601284;
+  --ifm-color-primary-light: #961ccf;
+  --ifm-color-primary-lighter: #9d1ed9;
+  --ifm-color-primary-lightest: #ab33e3;
+
+  --ifm-background-color: #f2e8de;
+  --ifm-background-surface-color: #f8f1e9;
+  --ifm-font-color-base: #101010;
+  --ifm-heading-color: #101010;
+  --ifm-navbar-background-color: #f2e8de;
+  --ifm-footer-background-color: #ebdfd2;
+
+  --ifm-font-family-base:
+    "Lexend Deca", system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  /* Lexend Deca draws heavier than the system stacks at the same nominal
+     weight, and it is a variable font, so every tier steps down ~100 across
+     the board: body text sits at 350, emphasis at 500, headings at 600. */
+  --ifm-font-weight-light: 250;
+  --ifm-font-weight-normal: 350;
+  --ifm-font-weight-semibold: 500;
+  --ifm-font-weight-bold: 600;
+  --ifm-heading-font-weight: 600;
+
+  --ifm-font-family-monospace:
+    ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+
+  --ifm-code-font-size: 92%;
+  --docusaurus-highlighted-code-line-bg: rgb(0 0 0 / 10%);
+}
+
+[data-theme="dark"] {
+  --ifm-color-primary: #c46feb;
+  --ifm-color-primary-dark: #b751e7;
+  --ifm-color-primary-darker: #b142e5;
+  --ifm-color-primary-darkest: #9b1dd6;
+  --ifm-color-primary-light: #d08ef0;
+  --ifm-color-primary-lighter: #d79df2;
+  --ifm-color-primary-lightest: #e9cbf8;
+
+  --ifm-background-color: #101010;
+  --ifm-background-surface-color: #1a1a1a;
+  --ifm-font-color-base: #ffffff;
+  --ifm-heading-color: #ffffff;
+  --ifm-navbar-background-color: #101010;
+  --ifm-footer-background-color: #0a0a0a;
+
+  --docusaurus-highlighted-code-line-bg: rgb(0 0 0 / 30%);
+}
+
+/* The specification and the refusal catalogue are dense reference tables; give
+   them room and let the wide ones scroll on their own instead of the page. */
+.markdown table {
+  display: block;
+  overflow-x: auto;
+  font-size: 0.9rem;
+}
+
+.markdown h2 {
+  margin-top: 2.4rem;
+}

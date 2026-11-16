@@ -1,0 +1,4 @@
+{
+  "refused": "header-truncated",
+  "why": "A declared header longer than the file is how these objects go bad mid-transfer."
+}

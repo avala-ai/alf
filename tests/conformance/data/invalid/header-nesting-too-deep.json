@@ -1,0 +1,4 @@
+{
+  "refused": "header-nesting-too-deep",
+  "why": "Unbounded recursive JSON decoding can overflow a reader stack before malformed input reaches its ALF quarantine path."
+}

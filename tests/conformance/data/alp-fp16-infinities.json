@@ -1,0 +1,19 @@
+{
+  "codec": "fp16",
+  "extension": "alp",
+  "frame_convention": null,
+  "max_geom_error_m": 0.00048828125,
+  "points": [
+    [
+      "Infinity",
+      "-Infinity",
+      0.0
+    ],
+    [
+      1.0,
+      "NaN",
+      -1.0
+    ]
+  ],
+  "version": 1
+}

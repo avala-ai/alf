@@ -1,0 +1,44 @@
+[build-system]
+requires = ["setuptools>=84"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "avala-alf"
+version = "0.1.0"
+description = "ALF — Arrays in Local Frames: a container for point-cloud sequences in a local coordinate frame"
+readme = "README.md"
+requires-python = ">=3.11"
+license = "Apache-2.0"
+license-files = ["LICENSE", "NOTICE"]
+authors = [{ name = "Avala AI" }]
+keywords = ["point-cloud", "lidar", "annotation", "fixed-point", "streaming"]
+classifiers = [
+  "Development Status :: 4 - Beta",
+  "Intended Audience :: Developers",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Programming Language :: Python :: 3.14",
+  "Topic :: Scientific/Engineering",
+]
+dependencies = ["numpy>=2.4.6"]
+
+[project.urls]
+Homepage = "https://alf.dev"
+Repository = "https://github.com/avala-ai/alf"
+Specification = "https://alf.dev/spec/format/"
+
+[project.optional-dependencies]
+# Ruff EXACTLY, not `>=`. CONTRIBUTING, AGENTS.md and the lint job all say the
+# linter is pinned so a release of it cannot turn CI red on an unchanged commit,
+# and a lower bound does not do that — CI installs this extra fresh every run.
+# pytest keeps a lower bound: it gates nothing, it only runs the tests. PyYAML
+# is exact because CI policy relies on its workflow-resolution semantics.
+dev = ["pytest>=9.1.1", "PyYAML==6.0.3", "ruff==0.17.3"]
+
+[tool.setuptools.packages.find]
+where = ["python"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["python"]

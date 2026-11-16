@@ -1,0 +1,33 @@
+[package]
+name = "avala-alf"
+version = "0.1.0"
+edition = "2021"
+description = "Reference Rust reader for the ALF point-cloud format (Arrays in Local Frames)"
+license = "Apache-2.0"
+homepage = "https://alf.dev"
+repository = "https://github.com/avala-ai/alf"
+
+[lib]
+name = "alf"
+path = "src/lib.rs"
+
+[[bin]]
+name = "alf-conformance"
+path = "src/bin/conformance.rs"
+
+[[example]]
+name = "portable_runtime"
+crate-type = ["cdylib"]
+
+[dependencies]
+# Pure-Rust inflate. `rust_backend` matters: this crate is consumed from a
+# WebAssembly module, and a C zlib would not build for wasm32-unknown-unknown.
+flate2 = { version = "1.0", default-features = false, features = ["rust_backend"] }
+half = "2.4"
+# `preserve_order` is NOT enough for the corpus: it needs DUPLICATE keys to be
+# detectable, which serde_json's map cannot express. The header is therefore
+# parsed with a raw event reader; serde_json is kept only for emitting the
+# canonical answer.
+serde_json = { version = "1.0", features = ["float_roundtrip", "arbitrary_precision"] }
+
+[dev-dependencies]

@@ -1,0 +1,8 @@
+{
+  "codec": "fp16",
+  "extension": "alp",
+  "frame_convention": null,
+  "max_geom_error_m": 0.0,
+  "points": [],
+  "version": 1
+}

@@ -1,0 +1,4 @@
+{
+  "refused": "frame-rotation-unexpected",
+  "why": "`world-aligned` declares that no rotation was applied, so a rotation beside it means one of the two statements is wrong \u2014 and the reading that drops it returns plausible, wrongly-oriented geometry."
+}

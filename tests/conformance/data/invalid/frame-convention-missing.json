@@ -1,0 +1,4 @@
+{
+  "refused": "frame-convention-missing",
+  "why": "A v3 frame that does not say whether its points were rotated into the device frame cannot be placed in the world; reading it as either convention is right for one producer and silently wrong for the other."
+}

@@ -1,0 +1,130 @@
+.hero {
+  padding: 5rem 0 4rem;
+  border-bottom: 1px solid var(--ifm-toc-border-color);
+}
+
+.heroTitle {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  font-family: var(--ifm-font-family-monospace);
+  font-size: 3.5rem;
+  letter-spacing: -0.04em;
+  margin-bottom: 0.75rem;
+}
+
+.heroMark {
+  width: 1em;
+  height: 1em;
+  flex: none;
+}
+
+.heroSubtitle {
+  font-size: 1.35rem;
+  font-weight: 350;
+  line-height: 1.5;
+  max-width: 44rem;
+  margin: 0 0 1rem;
+}
+
+.heroDetail {
+  max-width: 44rem;
+  margin: 0 0 2rem;
+  color: var(--ifm-color-emphasis-700);
+}
+
+.buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.section {
+  padding: 3.5rem 0;
+}
+
+.sectionTitle {
+  font-size: 1.6rem;
+  margin-bottom: 2rem;
+}
+
+/* The channel table is the one wide element on the page; let it scroll inside its
+   own box rather than giving the whole page a horizontal scrollbar. */
+.tableWrap {
+  overflow-x: auto;
+}
+
+.channels {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.95rem;
+}
+
+.channels th,
+.channels td {
+  text-align: left;
+  padding: 0.55rem 1rem 0.55rem 0;
+  border-bottom: 1px solid var(--ifm-toc-border-color);
+  white-space: nowrap;
+}
+
+.channels th {
+  font-weight: var(--ifm-font-weight-semibold);
+  color: var(--ifm-color-emphasis-700);
+}
+
+.note {
+  margin-top: 1.25rem;
+  max-width: 44rem;
+  color: var(--ifm-color-emphasis-700);
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(17rem, 1fr));
+  gap: 1.75rem 2.5rem;
+}
+
+.item h3 {
+  font-size: 1.05rem;
+  margin-bottom: 0.4rem;
+}
+
+.item p {
+  color: var(--ifm-color-emphasis-700);
+  margin-bottom: 0;
+}
+
+.languages {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  margin-bottom: 1.5rem;
+}
+
+.language {
+  font-family: var(--ifm-font-family-monospace);
+  font-size: 0.9rem;
+  padding: 0.3rem 0.7rem;
+  border: 1px solid var(--ifm-toc-border-color);
+  border-radius: var(--ifm-global-radius);
+}
+
+@media (max-width: 768px) {
+  .hero {
+    padding: 3rem 0 2.5rem;
+  }
+
+  .heroTitle {
+    font-size: 2.5rem;
+  }
+
+  .heroSubtitle {
+    font-size: 1.15rem;
+  }
+
+  .channels td:nth-child(3) {
+    white-space: normal;
+    min-width: 14rem;
+  }
+}

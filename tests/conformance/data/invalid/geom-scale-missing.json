@@ -1,0 +1,4 @@
+{
+  "refused": "geom-scale-missing",
+  "why": "Without the step every coordinate decodes to the wrong magnitude, and nothing about the payload reveals it."
+}

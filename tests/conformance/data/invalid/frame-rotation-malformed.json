@@ -1,0 +1,4 @@
+{
+  "refused": "frame-rotation-malformed",
+  "why": "A quaternion missing a component is not a rotation; defaulting the absent member to zero would produce a confident rotation the producer never described."
+}

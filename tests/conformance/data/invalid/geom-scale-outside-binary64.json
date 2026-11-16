@@ -1,0 +1,4 @@
+{
+  "refused": "geom-number-inexact",
+  "why": "A JSON geometry integer outside binary64's range cannot define the same coordinate grid after decoding."
+}

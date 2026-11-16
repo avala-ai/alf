@@ -1,0 +1,4 @@
+{
+  "refused": "instance-map-incomplete",
+  "why": "A map that CLAIMS to record identity and misses emitted ids exports objects with a null uuid and reports success."
+}

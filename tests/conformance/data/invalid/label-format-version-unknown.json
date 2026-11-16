@@ -1,0 +1,4 @@
+{
+  "refused": "label-layout-unsupported",
+  "why": "Treating an unknown layout as v1 returns the interleaved stream as categories and silently invents instance ids."
+}

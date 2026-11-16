@@ -1,0 +1,4 @@
+{
+  "refused": "geom-partial-no-return",
+  "why": "A point with some but not all words equal to the reserved invalid-return marker (-32768) cannot come from a conforming writer, which clamps real coordinates to +/-32767; reconstructing it arithmetically yields a plausible position (-327.68 here) that no later check can distinguish from measured data."
+}

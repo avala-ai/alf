@@ -1,0 +1,4 @@
+{
+  "refused": "label-version-on-non-label-channel",
+  "why": "Wire version 2 selects the interleaved .all label layout; accepting it on another channel reinterprets label bytes as unrelated measurements."
+}

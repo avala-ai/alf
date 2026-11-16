@@ -1,0 +1,4 @@
+{
+  "refused": "geom-scale-not-positive",
+  "why": "A zero or negative step is not a grid. Zero collapses the frame to its offset; negative mirrors it."
+}

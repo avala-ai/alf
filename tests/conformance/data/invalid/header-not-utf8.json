@@ -1,0 +1,4 @@
+{
+  "refused": "header-not-utf8",
+  "why": "A reader that lets a UnicodeDecodeError escape aborts a pipeline run that would otherwise quarantine the frame."
+}

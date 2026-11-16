@@ -1,0 +1,4 @@
+{
+  "refused": "frame-rotation-not-normalized",
+  "why": "Conjugation by a non-unit quaternion scales by |q|^2 as well as rotating, so every coordinate in the frame moves by a factor nothing else in the file disagrees with."
+}

@@ -1,0 +1,24 @@
+name: alf
+description: Pure Dart reader and writer for ALF (Arrays in Local Frames).
+version: 0.1.0
+homepage: https://alf.dev
+repository: https://github.com/avala-ai/alf
+issue_tracker: https://github.com/avala-ai/alf/issues
+documentation: https://alf.dev/guides/getting-started/read-dart
+topics:
+  - point-cloud
+  - lidar
+  - codec
+  - binary-format
+
+environment:
+  sdk: ^3.9.0
+
+dependencies:
+  # 4.6.0 buffers Inflate.stream sinks internally before checking our limits.
+  # Keep prefix inflation and full-reader allocation bounded at each write.
+  archive: ">=4.0.7 <4.6.0"
+
+dev_dependencies:
+  lints: ^6.0.0
+  test: ^1.26.3

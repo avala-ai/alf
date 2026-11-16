@@ -1,0 +1,4 @@
+{
+  "refused": "instance-map-malformed",
+  "why": "Resolvers look up the canonical decimal spelling of each uint16 id, so a leading-zero key names no emitted instance."
+}

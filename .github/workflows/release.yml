@@ -1,0 +1,646 @@
+name: Release
+
+# Publishing is tag-driven and per package. Nothing here fires on an ordinary
+# push: every job is guarded on a tag matching that package's scheme, so a
+# release is always something someone did on purpose.
+#
+# Tag scheme (see RELEASING.md):
+#   releases/python/vX.Y.Z
+#   releases/dart/vX.Y.Z
+#   releases/typescript/vX.Y.Z
+#   releases/rust/vX.Y.Z
+#   releases/corpus/vX.Y.Z         <- the conformance corpus, not a package
+#
+# There is no repository-wide version and there should never be a bare `vX.Y.Z`
+# tag. The SDKs are versioned independently on purpose: a package release must
+# not imply that application consumers have adopted an opt-in wire version.
+#
+# Every job runs on a GITHUB-HOSTED runner. npm trusted publishing supports only
+# hosted runners, so moving this workflow to a self-hosted runner would fail
+# authentication after every conformance gate had passed. The
+# ephemeral runner also isolates release notes and build state when two package
+# tags run at once; no process-global `/tmp` or user-site state survives a job.
+#
+# Every job that publishes to a registry authenticates with OIDC trusted
+# publishing. There are no stored registry tokens in this repository and there
+# should never be one: a token in a secret is a credential that outlives the job
+# it was created for. The corpus publishes to no registry, so it asks for no
+# id-token at all.
+#
+# Every job leaves a GitHub Release behind with that version's changelog section
+# as its body. A tag that publishes a package and leaves no release is a version
+# nobody can read the reason for, and the two drift from there. The section is
+# required, and the check runs BEFORE the build so a missing one stops the
+# release while it can still be abandoned.
+#
+# Every job also re-runs that language's conformance gate against the exact
+# commit being published. CI proved the branch; this proves the tag. They are
+# usually the same commit and the one time they are not is the time it matters.
+
+on:
+  push:
+    tags:
+      - "releases/**"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# One run per tag, and NEVER cancelled. Two runs for one tag can otherwise
+# interleave a publish with another run's announcement, and the misattribution
+# the guard exists to prevent walks back in through the recovery path. Queued
+# rather than cancelled because cancelling a run is only safe before it has
+# published, and this is the workflow that cannot tell you when that was.
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  python:
+    name: Publish avala-alf to PyPI
+    if: startsWith(github.ref, 'refs/tags/releases/python/')
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment: release
+    permissions:
+      # The only permission a trusted-publishing job needs. No token, no secret.
+      id-token: write
+      # For the release step alone. Scoped to this job rather than the workflow,
+      # so the token that publishes has no more reach than it did before.
+      contents: write
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+
+      - name: Version matches the tag
+        # Run before anything is built. A package whose version constant and tag
+        # disagree is the one mistake that cannot be fixed after publication,
+        # because the version number is the thing you cannot take back.
+        run: |
+          set -euo pipefail
+          tag="${GITHUB_REF#refs/tags/releases/python/v}"
+          # One reader for every job. It is section-aware where a manifest has
+          # sections, and it cross-checks `pyproject.toml` against
+          # `python/alf/__init__.py` — see `.github/scripts/package_version.sh`.
+          declared=$(.github/scripts/package_version.sh python)
+          echo "tag=$tag declared=$declared"
+          if [ "$tag" != "$declared" ]; then
+            echo "::error::version mismatch — tag $tag, package declares $declared"
+            exit 1
+          fi
+
+      - name: Release notes from the changelog
+        id: notes
+        run: |
+          set -euo pipefail
+          tag="${GITHUB_REF#refs/tags/releases/python/v}"
+          python3 .github/scripts/changelog_section.py "$tag" > "$RUNNER_TEMP/notes.md"
+          cat "$RUNNER_TEMP/notes.md"
+
+      # A DRAFT, before anything is published. It stays invisible until the
+      # registry has accepted the package, and creating it first means a rerun
+      # can always finalize the release even if publishing succeeded and a later
+      # step did not.
+      - name: Draft the GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
+            gh release edit "$GITHUB_REF_NAME" \
+              --title "alf (Python) ${GITHUB_REF_NAME##*/}" --notes-file "$RUNNER_TEMP/notes.md"
+          else
+            gh release create "$GITHUB_REF_NAME" --draft \
+              --title "alf (Python) ${GITHUB_REF_NAME##*/}" --notes-file "$RUNNER_TEMP/notes.md"
+          fi
+
+      - name: Conformance, at the tagged commit
+        run: |
+          set -euo pipefail
+          pip install --quiet --upgrade pip build
+          pip install --quiet -e ".[dev]"
+          python -m pytest tests/ -q
+          python tests/conformance/generate.py --verify
+          python tests/conformance/run.py
+          python tests/conformance/encode_roundtrip.py \
+            --encoder "python tests/conformance/runners/python_encode_roundtrip.py"
+
+      - name: Build
+        run: python -m build
+
+      # One implementation of the publish decision, called by all four jobs.
+      # These jobs each carried their own copy, and every review round found a
+      # fix that had reached some of them and not the others. The rules, the
+      # evidence it reads, and why "the registry has this version" is not
+      # evidence are in `.github/scripts/release_guard.sh`.
+      - name: May this commit publish this version?
+        id: guard
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          version=$(.github/scripts/package_version.sh python)
+          .github/scripts/release_guard.sh decide pypi "$version" \
+            "https://pypi.org/pypi/avala-alf/$version/json"
+
+      # BEFORE the publish. The window between a registry accepting the package
+      # and this job writing that down is the one state the proof marker cannot
+      # describe, and it used to be unrecoverable.
+      - name: Announce the publish attempt
+        if: steps.guard.outputs.publish == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: .github/scripts/release_guard.sh announce pypi
+
+      - uses: pypa/gh-action-pypi-publish@release/v1
+        if: steps.guard.outputs.publish == 'true'
+
+      # Retried inside the guard. If it fails anyway the release stays a draft
+      # and the refusal on the next attempt says exactly how to certify it by
+      # hand — deliberately, because a publish that lost a race to another
+      # publisher leaves the same evidence as one that succeeded.
+      - name: Record the publishing commit
+        if: steps.guard.outputs.publish == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: .github/scripts/release_guard.sh record pypi
+
+      # Finalized only after the registry accepted the package. Created as a
+      # DRAFT before publishing, above: a registry version is immutable, so if
+      # this step failed on an already-published version, a rerun would be
+      # rejected by the registry and could never reach here to repair the
+      # missing release.
+      - name: Publish the drafted release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release edit "$GITHUB_REF_NAME" --draft=false
+
+  typescript:
+    name: Publish @avala-ai/alf to npm
+    if: startsWith(github.ref, 'refs/tags/releases/typescript/')
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment: release
+    permissions:
+      id-token: write
+      contents: write
+    steps:
+      - uses: actions/checkout@v7
+      # These jobs run `python3` for the conformance gate; without this they take
+      # whatever the image happens to ship, which may be below the declared floor.
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: "1.3.11"
+      # NO `registry-url`. It writes an `.npmrc` with an empty `_authToken`, and
+      # an empty token is not "no token" — npm sends it, the OIDC exchange never
+      # runs, and the publish fails ENEEDAUTH. Trusted publishing wants the
+      # default registry and no credentials file at all.
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "22"
+
+      # npm trusted publishing needs npm 11.5.1 or newer, and the npm bundled
+      # with a Node image is whatever that image happened to ship. Pinned rather
+      # than `@latest` for the same reason every other tool here is: a release
+      # that behaves differently on two consecutive days is not reproducible.
+      # Without this the tag passes every gate and then fails OIDC at publish.
+      - name: npm new enough for trusted publishing
+        run: |
+          set -euo pipefail
+          npm install -g npm@12.0.2
+          npm --version
+
+      - name: Version matches the tag
+        run: |
+          set -euo pipefail
+          tag="${GITHUB_REF#refs/tags/releases/typescript/v}"
+          declared=$(.github/scripts/package_version.sh typescript)
+          echo "tag=$tag declared=$declared"
+          if [ "$tag" != "$declared" ]; then
+            echo "::error::version mismatch — tag $tag, package declares $declared"
+            exit 1
+          fi
+
+      - name: Release notes from the changelog
+        run: |
+          set -euo pipefail
+          tag="${GITHUB_REF#refs/tags/releases/typescript/v}"
+          python3 .github/scripts/changelog_section.py "$tag" typescript/alf/CHANGELOG.md > "$RUNNER_TEMP/notes.md"
+          cat "$RUNNER_TEMP/notes.md"
+
+      # A DRAFT, before anything is published. It stays invisible until the
+      # registry has accepted the package, and creating it first means a rerun
+      # can always finalize the release even if publishing succeeded and a later
+      # step did not.
+      - name: Draft the GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
+            gh release edit "$GITHUB_REF_NAME" \
+              --title "@avala-ai/alf ${GITHUB_REF_NAME##*/}" --notes-file "$RUNNER_TEMP/notes.md"
+          else
+            gh release create "$GITHUB_REF_NAME" --draft \
+              --title "@avala-ai/alf ${GITHUB_REF_NAME##*/}" --notes-file "$RUNNER_TEMP/notes.md"
+          fi
+
+      - name: Build and conformance, at the tagged commit
+        run: |
+          set -euo pipefail
+          pip install --quiet --upgrade pip
+          pip install --quiet -e ".[dev]"
+          cd typescript/alf && bun install --frozen-lockfile && bun run build && bun run lint && bun test && cd -
+          # `bun test` imports `src/`. npm consumers get `dist/`, and a broken
+          # declared entry point is invisible to every other check here.
+          node typescript/alf/tool/platform_smoke.mjs
+          python tests/conformance/generate.py --verify
+          python tests/conformance/run.py --runner "bun run typescript/conformance/read.ts"
+          python tests/conformance/encode_roundtrip.py \
+            --encoder "bun run typescript/conformance/roundtrip.ts"
+
+      # One implementation of the publish decision, called by all four jobs.
+      # These jobs each carried their own copy, and every review round found a
+      # fix that had reached some of them and not the others. The rules, the
+      # evidence it reads, and why "the registry has this version" is not
+      # evidence are in `.github/scripts/release_guard.sh`.
+      - name: May this commit publish this version?
+        id: guard
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          version=$(.github/scripts/package_version.sh typescript)
+          # The registry's own endpoint rather than `npm view`, which reports a
+          # network failure and a missing version with the same exit code. `%2f`
+          # because the scope separator has to survive the path.
+          .github/scripts/release_guard.sh decide npm "$version" \
+            "https://registry.npmjs.org/@avala-ai%2falf/$version"
+
+      # BEFORE the publish. The window between a registry accepting the package
+      # and this job writing that down is the one state the proof marker cannot
+      # describe, and it used to be unrecoverable.
+      - name: Announce the publish attempt
+        if: steps.guard.outputs.publish == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: .github/scripts/release_guard.sh announce npm
+
+      # OIDC authorizes the upload; provenance is the separate attestation that
+      # lets a consumer verify the tarball came from this workflow and commit.
+      # npm can issue it only when the repository and package are both public.
+      - name: Publish
+        if: steps.guard.outputs.publish == 'true'
+        working-directory: typescript/alf
+        run: npm publish --provenance --access public
+
+      # Retried inside the guard. If it fails anyway the release stays a draft
+      # and the refusal on the next attempt says exactly how to certify it by
+      # hand — deliberately, because a publish that lost a race to another
+      # publisher leaves the same evidence as one that succeeded.
+      - name: Record the publishing commit
+        if: steps.guard.outputs.publish == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: .github/scripts/release_guard.sh record npm
+
+      # Finalized only after the registry accepted the package. Created as a
+      # DRAFT before publishing, above: a registry version is immutable, so if
+      # this step failed on an already-published version, a rerun would be
+      # rejected by the registry and could never reach here to repair the
+      # missing release.
+      - name: Publish the drafted release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release edit "$GITHUB_REF_NAME" --draft=false
+
+  dart:
+    name: Publish alf to pub.dev
+    if: startsWith(github.ref, 'refs/tags/releases/dart/')
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment: release
+    permissions:
+      id-token: write
+      contents: write
+    steps:
+      - uses: actions/checkout@v7
+      # These jobs run `python3` for the conformance gate; without this they take
+      # whatever the image happens to ship, which may be below the declared floor.
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+      - uses: dart-lang/setup-dart@v1
+        with:
+          sdk: "3.13.3"
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "22"
+
+      - name: Version matches the tag
+        run: |
+          set -euo pipefail
+          tag="${GITHUB_REF#refs/tags/releases/dart/v}"
+          declared=$(.github/scripts/package_version.sh dart)
+          echo "tag=$tag declared=$declared"
+          if [ "$tag" != "$declared" ]; then
+            echo "::error::version mismatch — tag $tag, package declares $declared"
+            exit 1
+          fi
+
+      - name: Release notes from the changelog
+        run: |
+          set -euo pipefail
+          tag="${GITHUB_REF#refs/tags/releases/dart/v}"
+          python3 .github/scripts/changelog_section.py "$tag" dart/alf/CHANGELOG.md > "$RUNNER_TEMP/notes.md"
+          cat "$RUNNER_TEMP/notes.md"
+
+      # A DRAFT, before anything is published. It stays invisible until the
+      # registry has accepted the package, and creating it first means a rerun
+      # can always finalize the release even if publishing succeeded and a later
+      # step did not.
+      - name: Draft the GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
+            gh release edit "$GITHUB_REF_NAME" \
+              --title "alf (Dart) ${GITHUB_REF_NAME##*/}" --notes-file "$RUNNER_TEMP/notes.md"
+          else
+            gh release create "$GITHUB_REF_NAME" --draft \
+              --title "alf (Dart) ${GITHUB_REF_NAME##*/}" --notes-file "$RUNNER_TEMP/notes.md"
+          fi
+
+      - name: Analyze, test and conformance, at the tagged commit
+        run: |
+          set -euo pipefail
+          pip install --quiet --upgrade pip
+          pip install --quiet -e ".[dev]"
+          cd dart/alf && dart pub get && dart format --output=none --set-exit-if-changed . && dart analyze && dart test
+          # Run identical synthetic cases on every supported runtime. Merely
+          # compiling cannot expose runtime numeric representation differences.
+          dart run tool/platform_smoke.dart
+          dart compile js tool/platform_smoke.dart -o "$RUNNER_TEMP/alf-smoke.js"
+          node "$RUNNER_TEMP/alf-smoke.js"
+          dart compile wasm tool/platform_smoke.dart -o "$RUNNER_TEMP/alf-smoke.wasm"
+          node tool/run_wasm.mjs "$RUNNER_TEMP/alf-smoke.wasm"
+          cd -
+          cd dart/conformance && dart pub get && cd -
+          python tests/conformance/generate.py --verify
+          python tests/conformance/run.py \
+            --runner "dart run dart/conformance/bin/conformance.dart"
+          python tests/conformance/encode_roundtrip.py \
+            --encoder "dart run dart/conformance/bin/encode_roundtrip.dart"
+
+      # One implementation of the publish decision, called by all four jobs.
+      # These jobs each carried their own copy, and every review round found a
+      # fix that had reached some of them and not the others. The rules, the
+      # evidence it reads, and why "the registry has this version" is not
+      # evidence are in `.github/scripts/release_guard.sh`.
+      - name: May this commit publish this version?
+        id: guard
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          version=$(.github/scripts/package_version.sh dart)
+          .github/scripts/release_guard.sh decide pub "$version" \
+            "https://pub.dev/api/packages/alf/versions/$version"
+
+      # BEFORE the publish. The window between a registry accepting the package
+      # and this job writing that down is the one state the proof marker cannot
+      # describe, and it used to be unrecoverable.
+      - name: Announce the publish attempt
+        if: steps.guard.outputs.publish == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: .github/scripts/release_guard.sh announce pub
+
+      # `dart pub publish` reads the OIDC token from the environment when the
+      # package is configured for automated publishing on pub.dev.
+      - name: Publish
+        if: steps.guard.outputs.publish == 'true'
+        working-directory: dart/alf
+        run: dart pub publish --force
+
+      # Retried inside the guard. If it fails anyway the release stays a draft
+      # and the refusal on the next attempt says exactly how to certify it by
+      # hand — deliberately, because a publish that lost a race to another
+      # publisher leaves the same evidence as one that succeeded.
+      - name: Record the publishing commit
+        if: steps.guard.outputs.publish == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: .github/scripts/release_guard.sh record pub
+
+      # Finalized only after the registry accepted the package. Created as a
+      # DRAFT before publishing, above: a registry version is immutable, so if
+      # this step failed on an already-published version, a rerun would be
+      # rejected by the registry and could never reach here to repair the
+      # missing release.
+      - name: Publish the drafted release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release edit "$GITHUB_REF_NAME" --draft=false
+
+  rust:
+    name: Publish avala-alf to crates.io
+    if: startsWith(github.ref, 'refs/tags/releases/rust/')
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment: release
+    permissions:
+      id-token: write
+      contents: write
+    steps:
+      - uses: actions/checkout@v7
+      # These jobs run `python3` for the conformance gate; without this they take
+      # whatever the image happens to ship, which may be below the declared floor.
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+      # Match CI's installable compiler independently of action updates.
+      - uses: dtolnay/rust-toolchain@683b588c487a69d01f6c6ddf40f036ff682cc2c8 # master
+        with:
+          toolchain: "1.98.0"
+          components: clippy, rustfmt
+          targets: wasm32-unknown-unknown
+
+      - name: Version matches the tag
+        run: |
+          set -euo pipefail
+          tag="${GITHUB_REF#refs/tags/releases/rust/v}"
+          declared=$(.github/scripts/package_version.sh rust)
+          echo "tag=$tag declared=$declared"
+          if [ "$tag" != "$declared" ]; then
+            echo "::error::version mismatch — tag $tag, package declares $declared"
+            exit 1
+          fi
+
+      - name: Crate is publishable
+        # `publish = false` is the right setting until the first release and the
+        # wrong one after it. Catch it here rather than in a failing `cargo
+        # publish` three steps later.
+        run: |
+          set -euo pipefail
+          if grep -q '^publish = false' rust/alf/Cargo.toml; then
+            echo "::error::rust/alf/Cargo.toml still says publish = false"
+            exit 1
+          fi
+
+      - name: Release notes from the changelog
+        run: |
+          set -euo pipefail
+          tag="${GITHUB_REF#refs/tags/releases/rust/v}"
+          python3 .github/scripts/changelog_section.py "$tag" > "$RUNNER_TEMP/notes.md"
+          cat "$RUNNER_TEMP/notes.md"
+
+      # A DRAFT, before anything is published. It stays invisible until the
+      # registry has accepted the package, and creating it first means a rerun
+      # can always finalize the release even if publishing succeeded and a later
+      # step did not.
+      - name: Draft the GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
+            gh release edit "$GITHUB_REF_NAME" \
+              --title "alf (Rust) ${GITHUB_REF_NAME##*/}" --notes-file "$RUNNER_TEMP/notes.md"
+          else
+            gh release create "$GITHUB_REF_NAME" --draft \
+              --title "alf (Rust) ${GITHUB_REF_NAME##*/}" --notes-file "$RUNNER_TEMP/notes.md"
+          fi
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "22"
+      - name: Lint, build and conformance, at the tagged commit
+        run: |
+          set -euo pipefail
+          pip install --quiet --upgrade pip
+          pip install --quiet -e ".[dev]"
+          cd rust/alf
+          cargo fmt --check
+          cargo clippy --release --all-targets -- -D warnings
+          cargo build --release
+          cargo test --all-targets
+          cargo check --lib --target wasm32-unknown-unknown
+          cargo build --locked --release --example portable_runtime --target wasm32-unknown-unknown
+          node tool/portable_runtime.mjs
+          cd -
+          python tests/conformance/generate.py --verify
+          python tests/conformance/run.py --runner "rust/alf/target/release/alf-conformance"
+          python -m pytest tests/test_rust_panic_safety.py -q
+
+      - uses: rust-lang/crates-io-auth-action@v1
+        id: auth
+
+      # One implementation of the publish decision, called by all four jobs.
+      # These jobs each carried their own copy, and every review round found a
+      # fix that had reached some of them and not the others. The rules, the
+      # evidence it reads, and why "the registry has this version" is not
+      # evidence are in `.github/scripts/release_guard.sh`.
+      - name: May this commit publish this version?
+        id: guard
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          version=$(.github/scripts/package_version.sh rust)
+          # crates.io answers 403 to a request without a User-Agent, which the
+          # guard sends and which is exactly the kind of not-404 it stops on.
+          .github/scripts/release_guard.sh decide crates "$version" \
+            "https://crates.io/api/v1/crates/avala-alf/$version"
+
+      # BEFORE the publish. The window between a registry accepting the package
+      # and this job writing that down is the one state the proof marker cannot
+      # describe, and it used to be unrecoverable.
+      - name: Announce the publish attempt
+        if: steps.guard.outputs.publish == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: .github/scripts/release_guard.sh announce crates
+
+      - name: Publish
+        if: steps.guard.outputs.publish == 'true'
+        working-directory: rust/alf
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ steps.auth.outputs.token }}
+        run: cargo publish
+
+      # Retried inside the guard. If it fails anyway the release stays a draft
+      # and the refusal on the next attempt says exactly how to certify it by
+      # hand — deliberately, because a publish that lost a race to another
+      # publisher leaves the same evidence as one that succeeded.
+      - name: Record the publishing commit
+        if: steps.guard.outputs.publish == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: .github/scripts/release_guard.sh record crates
+
+      # Finalized only after the registry accepted the package. Created as a
+      # DRAFT before publishing, above: a registry version is immutable, so if
+      # this step failed on an already-published version, a rerun would be
+      # rejected by the registry and could never reach here to repair the
+      # missing release.
+      - name: Publish the drafted release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release edit "$GITHUB_REF_NAME" --draft=false
+
+  corpus:
+    name: Release the conformance corpus
+    # The corpus has its own namespace because adding a case changes the evidence
+    # every SDK is graded against without necessarily changing a package. It
+    # publishes to no registry, so it asks for no id-token: what it produces is a
+    # GitHub Release carrying the generated fixtures as an asset, so an
+    # implementation outside this repository can be graded without running the
+    # generator.
+    if: startsWith(github.ref, 'refs/tags/releases/corpus/')
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+
+      - name: Release notes from the changelog
+        run: |
+          set -euo pipefail
+          tag="${GITHUB_REF#refs/tags/releases/corpus/v}"
+          python3 .github/scripts/changelog_section.py "$tag" > "$RUNNER_TEMP/notes.md"
+          cat "$RUNNER_TEMP/notes.md"
+
+      - name: Generate, verify, and score the reference runner
+        run: |
+          set -euo pipefail
+          pip install --quiet --upgrade pip
+          pip install --quiet -e ".[dev]"
+          python tests/conformance/generate.py --verify
+          python tests/conformance/generate.py
+          python tests/conformance/run.py
+
+      - name: Bundle
+        # `$RUNNER_TEMP`, like every other scratch path here. This is the last
+        # fixed `/tmp` in the file; it is harmless on an ephemeral runner and
+        # it is the exact shape the header warns against two hundred lines up.
+        run: tar -czf "$RUNNER_TEMP/alf-conformance-corpus.tar.gz" -C tests/conformance data
+
+      - name: GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" \
+            --title "Conformance corpus ${GITHUB_REF_NAME##*/}" \
+            --notes-file "$RUNNER_TEMP/notes.md" \
+            "$RUNNER_TEMP/alf-conformance-corpus.tar.gz"

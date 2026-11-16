@@ -1,0 +1,4 @@
+{
+  "refused": "palette-entry-malformed",
+  "why": "\"zzzzzz\" passes a length check and then range-checks indexes against a palette no viewer can parse."
+}

@@ -1,0 +1,51 @@
+name: Bug report
+description: An SDK or the conformance suite behaves incorrectly
+labels: [bug]
+body:
+  - type: dropdown
+    id: package
+    attributes:
+      label: Package
+      options: [python, dart, typescript, rust, conformance, spec, docs]
+    validations: { required: true }
+  - type: dropdown
+    id: channel
+    attributes:
+      label: Channel
+      description: Which channel the file belongs to, if the bug involves a file.
+      options: [".alp", ".ali", ".alc", ".all", ".alx", "not file-specific"]
+    validations: { required: true }
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: >
+        Include the file that reproduces it if you can share one, or the header alone if you
+        cannot. A refusal identifier — the stable string in the error, `error.code` in
+        TypeScript, `error.refusal` in Dart, `err.id` in Rust — is usually enough to locate the
+        rule.
+    validations: { required: true }
+  - type: textarea
+    id: expected
+    attributes:
+      label: What you expected
+      description: >
+        If you believe a reader accepted something it should have refused, say which rule. That is
+        the more serious direction: a wrong answer here is silent.
+    validations: { required: true }
+  - type: input
+    id: version
+    attributes:
+      label: Package version
+    validations: { required: true }
+  - type: input
+    id: runtime
+    attributes:
+      label: Runtime
+      description: Python 3.12, Bun 1.3.11, Dart 3.9 VM, Flutter web/Wasm, wasm32-unknown-unknown, ...
+  - type: checkboxes
+    id: conformance
+    attributes:
+      label: Conformance
+      options:
+        - label: I ran `python3 tests/conformance/run.py` against the affected implementation

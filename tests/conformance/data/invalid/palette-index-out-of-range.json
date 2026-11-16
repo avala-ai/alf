@@ -1,0 +1,4 @@
+{
+  "refused": "palette-index-out-of-range",
+  "why": "An index past the palette end renders as an arbitrary colour rather than failing, so the mis-colouring looks like data."
+}

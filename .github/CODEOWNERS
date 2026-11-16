@@ -1,0 +1,4 @@
+# The normative text and the evidence behind it need format-owner review. Everything
+# else follows ordinary review; see GOVERNANCE.md.
+/spec/                @avala-ai/format-owners
+/tests/conformance/   @avala-ai/format-owners

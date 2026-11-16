@@ -1,0 +1,28 @@
+__pycache__/
+*.py[cod]
+.pytest_cache/
+*.egg-info/
+build/
+dist/
+.venv/
+.dart_tool/
+dart/alf/pubspec.lock
+
+# Conformance corpus files are GENERATED, never committed. `generate.py`
+# rebuilds them deterministically and CHECKSUMS.txt is the gate.
+tests/conformance/data/*.alp
+tests/conformance/data/*.ali
+tests/conformance/data/*.alc
+tests/conformance/data/*.all
+tests/conformance/data/*.alx
+tests/conformance/data/*.gz
+tests/conformance/data/invalid/*.bin
+
+# Rust build output
+rust/alf/target/
+
+# Docusaurus site under website/ — dependencies and generated output.
+node_modules/
+website/build/
+website/.docusaurus/
+.gstack/

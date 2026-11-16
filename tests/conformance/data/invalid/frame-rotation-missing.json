@@ -1,0 +1,4 @@
+{
+  "refused": "frame-rotation-missing",
+  "why": "A device-aligned frame without its rotation cannot be returned to the world at all, and falling back to the world-aligned reading is the exact error the declaration exists to prevent."
+}

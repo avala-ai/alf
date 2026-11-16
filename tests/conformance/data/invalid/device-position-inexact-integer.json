@@ -1,0 +1,4 @@
+{
+  "refused": "geom-number-inexact",
+  "why": "Rounding a device-position component outside binary64's exact integer range shifts every local point in the frame."
+}

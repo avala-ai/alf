@@ -1,0 +1,12 @@
+name: alf_conformance
+publish_to: none
+
+environment:
+  sdk: ^3.9.0
+
+dependencies:
+  alf:
+    path: ../alf
+
+dev_dependencies:
+  lints: ^6.0.0

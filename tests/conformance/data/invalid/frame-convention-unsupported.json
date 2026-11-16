@@ -1,0 +1,4 @@
+{
+  "refused": "frame-convention-unsupported",
+  "why": "A convention nobody has defined cannot be guessed at, and it is the field that says where these points are."
+}

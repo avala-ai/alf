@@ -1,0 +1,4 @@
+{
+  "refused": "instance-id-reserved",
+  "why": "65535 is reserved; the editor's registry caps valid local ids at 65534, so this file's instance identity cannot be resolved."
+}

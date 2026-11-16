@@ -1,0 +1,4 @@
+{
+  "refused": "gzip-malformed",
+  "why": "A member carrying FHCRC explicitly authenticates its gzip header; accepting a mismatched checksum treats marked corruption as valid input."
+}

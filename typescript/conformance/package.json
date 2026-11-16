@@ -1,0 +1,9 @@
+{
+  "name": "@avala-ai/alf-conformance",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "read": "bun run read.ts",
+    "roundtrip": "bun run roundtrip.ts"
+  }
+}

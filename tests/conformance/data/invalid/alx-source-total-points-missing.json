@@ -1,0 +1,4 @@
+{
+  "refused": "source-total-points-missing",
+  "why": "Without the original cloud size, a sidecar index cannot be proven to address a real source point."
+}

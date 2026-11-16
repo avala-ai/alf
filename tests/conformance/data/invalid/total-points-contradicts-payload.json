@@ -1,0 +1,4 @@
+{
+  "refused": "payload-length-mismatch",
+  "why": "Channels are correlated by index, so a count that disagrees with the payload misattributes every value after the gap."
+}

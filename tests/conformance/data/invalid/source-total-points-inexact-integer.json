@@ -1,0 +1,4 @@
+{
+  "refused": "total-points-not-an-integer",
+  "why": "A source count that changes in binary64 makes readers disagree about the valid range for every decimation index."
+}

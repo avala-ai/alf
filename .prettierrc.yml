@@ -1,0 +1,11 @@
+printWidth: 100
+# PRESERVE, not `always`. The specification and the guides are wrapped by hand at
+# different widths — around 80 for the normative text, around 100 for the site —
+# and both are deliberate. Reflowing them would produce a diff the size of the
+# repository to settle a question nobody asked. What this gate is for is the
+# mechanical half: list markers, code fences, table alignment, stray whitespace.
+proseWrap: preserve
+overrides:
+  - files: "*.md"
+    options:
+      tabWidth: 2

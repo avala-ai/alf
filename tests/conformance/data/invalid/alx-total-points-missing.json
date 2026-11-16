@@ -1,0 +1,4 @@
+{
+  "refused": "total-points-missing",
+  "why": "Without the kept-point count, the sidecar cannot be proven to contain one source mapping per decimated geometry point."
+}

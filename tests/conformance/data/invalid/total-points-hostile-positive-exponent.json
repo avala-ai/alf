@@ -1,0 +1,4 @@
+{
+  "refused": "total-points-not-an-integer",
+  "why": "A compact exponent must be bounded before a reader expands it into a hostile hundred-million-digit integer."
+}

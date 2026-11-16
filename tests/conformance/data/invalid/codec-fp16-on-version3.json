@@ -1,0 +1,4 @@
+{
+  "refused": "codec-version-disagreement",
+  "why": "The mirror image: the byte says fixed point, the header says half-float."
+}

@@ -1,0 +1,30 @@
+root = true
+
+[*]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+trim_trailing_whitespace = true
+indent_style = space
+indent_size = 2
+
+[*.py]
+indent_size = 4
+
+# Rust is four; Dart is two, and `dart format` is not negotiable about it —
+# `--set-exit-if-changed` runs in CI, so an editor auto-indenting Dart at four
+# would produce a diff the formatter rejects. Grouping them cost nothing to
+# write and would have cost a contributor a red build.
+[*.rs]
+indent_size = 4
+
+[*.dart]
+indent_size = 2
+
+# Markdown uses trailing whitespace as a hard line break, so trimming it changes
+# how a document renders rather than tidying it.
+[*.md]
+trim_trailing_whitespace = false
+
+[Makefile]
+indent_style = tab

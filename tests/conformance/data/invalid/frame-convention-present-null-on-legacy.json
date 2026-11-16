@@ -1,0 +1,4 @@
+{
+  "refused": "frame-convention-on-legacy-version",
+  "why": "A v1 file carrying the key at all is refused whatever its value; treating a null as absence lets a legacy file declare a convention its reader will not honour."
+}

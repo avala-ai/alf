@@ -1,0 +1,4 @@
+{
+  "refused": "label-layout-ambiguous",
+  "why": "Without a declared count, a three-byte payload fits both semantic and panoptic layouts; choosing either silently reinterprets labels."
+}

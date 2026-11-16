@@ -1,0 +1,17 @@
+{
+  "categories": [
+    1,
+    2
+  ],
+  "extension": "all",
+  "format_version": 2,
+  "instance_ids": [
+    1,
+    2
+  ],
+  "instance_map": {
+    "1": "uuid-a",
+    "2": "uuid-b"
+  },
+  "version": 2
+}

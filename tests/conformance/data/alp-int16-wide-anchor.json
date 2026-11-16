@@ -1,0 +1,22 @@
+{
+  "anchors": {
+    "device_position": {
+      "note": "gps",
+      "x": 18446744073709551616,
+      "y": 0,
+      "z": 0
+    }
+  },
+  "codec": "int16",
+  "extension": "alp",
+  "frame_convention": "world-aligned",
+  "max_geom_error_m": 5e-05,
+  "points": [
+    [
+      0.0,
+      0.0,
+      0.0
+    ]
+  ],
+  "version": 3
+}

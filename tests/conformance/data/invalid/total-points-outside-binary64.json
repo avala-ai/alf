@@ -1,0 +1,4 @@
+{
+  "refused": "total-points-not-an-integer",
+  "why": "A reserved count outside finite binary64 has no portable integer value and must reach the count refusal before generic metadata validation."
+}

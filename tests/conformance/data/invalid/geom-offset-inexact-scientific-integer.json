@@ -1,0 +1,4 @@
+{
+  "refused": "geom-number-inexact",
+  "why": "Normalized-looking scientific notation can still state an integer different from the binary64 value; accepting it shifts the complete coordinate grid."
+}

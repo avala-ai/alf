@@ -1,0 +1,4 @@
+{
+  "refused": "header-not-json",
+  "why": "Version-1 geometry keys are stale format metadata, not active v3 codec parameters, so their numbers still belong to the finite-binary64 JSON domain."
+}

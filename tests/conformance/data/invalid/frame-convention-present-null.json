@@ -1,0 +1,4 @@
+{
+  "refused": "frame-convention-unsupported",
+  "why": "A present null is something the producer wrote, not an absent field; reading it as absence accepts a v3 frame that states no convention at all."
+}

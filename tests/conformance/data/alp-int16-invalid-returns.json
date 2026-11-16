@@ -1,0 +1,24 @@
+{
+  "codec": "int16",
+  "extension": "alp",
+  "frame_convention": "world-aligned",
+  "max_geom_error_m": 5.7222205e-05,
+  "points": [
+    [
+      1.500038,
+      -2.5,
+      3.750011
+    ],
+    [
+      "NaN",
+      "NaN",
+      "NaN"
+    ],
+    [
+      3.999962,
+      5.0,
+      5.999989
+    ]
+  ],
+  "version": 3
+}

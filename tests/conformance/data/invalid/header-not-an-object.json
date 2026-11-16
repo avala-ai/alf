@@ -1,0 +1,4 @@
+{
+  "refused": "header-not-an-object",
+  "why": "Every accessor does a keyed lookup, so a list or scalar root fails later and further from the cause."
+}

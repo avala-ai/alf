@@ -1,0 +1,4 @@
+{
+  "refused": "total-points-not-an-integer",
+  "why": "A negative exponent larger than the significand's available trailing zeros must be refused before a reader constructs a hostile power-of-ten divisor."
+}

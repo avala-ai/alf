@@ -1,0 +1,521 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      matrix:
+        # The floor is what `pyproject.toml` declares, the ceiling is the newest
+        # release. 3.9 and 3.10 were dropped when numpy's own floor passed them:
+        # `numpy>=2.2.6` requires 3.10, and 2.3 requires 3.11, so holding 3.9
+        # meant holding an increasingly old numpy under a format library whose
+        # whole job is decoding into it.
+        #
+        # 3.14 is here because `requires-python = ">=3.11"` already promises it
+        # works. A version the package claims to support and CI never runs is a
+        # claim with nothing behind it, which is the one kind of statement this
+        # repository tries not to make. Verified before adding the leg: the full
+        # suite, the corpus determinism gate, 117/117 conformance and 45/45
+        # writer round-trip all pass on 3.14.3 against numpy 2.5.2.
+        python-version: ["3.11", "3.12", "3.13", "3.14"]
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Isolated virtualenv
+        # Isolate dependencies and caches by run, attempt, and matrix job.
+        run: |
+          set -euo pipefail
+          VENV="${RUNNER_TEMP}/alf-venv-${{ github.run_id }}-${{ github.run_attempt }}-${{ github.job }}-${{ strategy.job-index || 0 }}"
+          python3 -m venv "$VENV"
+          "$VENV/bin/python" -m pip install --quiet --upgrade pip
+          echo "$VENV/bin" >> "$GITHUB_PATH"
+          echo "PIP_CACHE_DIR=${RUNNER_TEMP}/alf-pip-cache" >> "$GITHUB_ENV"
+          # Sweep venvs from earlier runs; a killed job leaves its directory behind
+          # and these accumulate until the host fills up.
+          find "${RUNNER_TEMP}" -mindepth 1 -maxdepth 1 -type d -name 'alf-venv-*' -mtime +1 \
+            -exec rm -rf -- {} + 2>/dev/null || true
+
+      - run: pip install -e ".[dev]"
+      - name: Build the Python registry artifacts
+        if: matrix.python-version == '3.12'
+        # One matrix leg is enough to prove the sdist and wheel can be built.
+        # The release job uses the same frontend; doing this on pull requests
+        # keeps the first package tag from being the first complete build.
+        run: |
+          python -m pip install --quiet build
+          python -m build
+          python - <<'PY'
+          import tarfile
+          import zipfile
+          from pathlib import Path
+
+          wheel = next(Path("dist").glob("*.whl"))
+          with zipfile.ZipFile(wheel) as archive:
+              wheel_files = set(archive.namelist())
+          required_wheel = {"alf/__init__.py", "alf/_guard.py", "alf/_io.py"}
+          missing = sorted(required_wheel - wheel_files)
+          for notice in ["/licenses/LICENSE", "/licenses/NOTICE"]:
+              if not any(path.endswith(notice) for path in wheel_files):
+                  missing.append(notice)
+          if missing:
+              raise SystemExit(f"Python wheel is missing: {missing}")
+
+          sdist = next(Path("dist").glob("*.tar.gz"))
+          with tarfile.open(sdist) as archive:
+              sdist_files = set(archive.getnames())
+          required_sdist = ["/python/alf/_io.py", "/LICENSE", "/NOTICE", "/README.md"]
+          missing = [path for path in required_sdist if not any(item.endswith(path) for item in sdist_files)]
+          if missing:
+              raise SystemExit(f"Python sdist is missing: {missing}")
+          PY
+      - name: Unit tests
+        run: python -m pytest tests/ -q
+
+      # CI proves the committed contract has not drifted. Regeneration is an
+      # explicit update operation so a codec change cannot bless its own bytes.
+      - name: Verify the checked-in conformance corpus
+        run: python tests/conformance/generate.py --verify
+
+      - name: Conformance — reference runner
+        run: python tests/conformance/run.py
+
+      - name: Writer interoperability — Python reference round-trip
+        run: >-
+          python tests/conformance/encode_roundtrip.py
+          --encoder "python tests/conformance/runners/python_encode_roundtrip.py"
+
+  lint:
+    # Python had no lint gate at all: black, isort and flake8 were declared as
+    # dev dependencies and never run, while Dart, TypeScript and Rust each had
+    # one. Ruff replaces all three, and is pinned in `pyproject.toml` because a
+    # linter that floats turns CI red without anyone changing a line.
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+      - name: Isolated virtualenv
+        # Isolate dependencies and caches by run, attempt, and matrix job.
+        run: |
+          set -euo pipefail
+          VENV="${RUNNER_TEMP}/alf-venv-${{ github.run_id }}-${{ github.run_attempt }}-${{ github.job }}-${{ strategy.job-index || 0 }}"
+          python3 -m venv "$VENV"
+          "$VENV/bin/python" -m pip install --quiet --upgrade pip
+          echo "$VENV/bin" >> "$GITHUB_PATH"
+          echo "PIP_CACHE_DIR=${RUNNER_TEMP}/alf-pip-cache" >> "$GITHUB_ENV"
+          find "${RUNNER_TEMP}" -mindepth 1 -maxdepth 1 -type d -name 'alf-venv-*' -mtime +1 \
+            -exec rm -rf -- {} + 2>/dev/null || true
+
+      - run: pip install -e ".[dev]"
+      # Rules and line length come from the root `ruff.toml`, so this command is
+      # the same one a contributor runs locally.
+      - name: Ruff
+        run: ruff check .
+      # Formatting became a gate only after the tree was formatted once, which
+      # is why it arrives later than the lint rules did. `.md` is excluded in
+      # `ruff.toml` and the exclusion is load-bearing: ruff reformats Python
+      # blocks inside Markdown, and the guides align trailing comments into a
+      # column a reader scans down. Prettier owns the prose; this owns the
+      # source.
+      - name: Ruff format
+        run: ruff format --check .
+
+      # The release workflow's publish decision lives in a shell script now, and
+      # a shell script in a repository whose CI never runs one is the same
+      # unexercised code the release workflow already was. Pinned by version and
+      # by checksum: this fetches a binary from the network into a job that then
+      # runs it, and "whatever is at that URL today" is not a thing to run.
+      - name: Shell scripts
+        run: |
+          set -euo pipefail
+          version=0.11.0
+          sha=8c3be12b05d5c177a04c29e3c78ce89ac86f1595681cab149b65b97c4e227198
+          url="https://github.com/koalaman/shellcheck/releases/download/v${version}/shellcheck-v${version}.linux.x86_64.tar.xz"
+          curl -sSfL "$url" -o "$RUNNER_TEMP/shellcheck.tar.xz"
+          echo "$sha  $RUNNER_TEMP/shellcheck.tar.xz" | sha256sum -c -
+          tar -xJf "$RUNNER_TEMP/shellcheck.tar.xz" -C "$RUNNER_TEMP"
+          echo "$RUNNER_TEMP/shellcheck-v${version}" >> "$GITHUB_PATH"
+      - run: shellcheck .github/scripts/*.sh
+
+      # The documentation is the product here as much as the code is: `spec/` is
+      # the normative text and the site renders it.
+      #
+      # EXACT versions, not `@3` and `@8`. Those are ranges — npm's package-spec
+      # accepts them and `npx` fetches whatever the range currently resolves to
+      # — so a minor release could change formatting or dictionary results and
+      # turn this job red with nothing in the repository having changed. That is
+      # the instability pinning is supposed to prevent, and a major-version
+      # "pin" does not prevent it.
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "22"
+      # `.github/**/*.md` explicitly: a leading-dot directory is not matched by
+      # `**`, so the issue and pull-request templates — the most-read markdown
+      # in the repository — were the three files this gate did not check.
+      - name: Prettier
+        run: npx --yes prettier@3.9.6 --check "**/*.md" ".github/**/*.md"
+      - name: Spelling
+        run: >-
+          npx --yes cspell@8.19.4 --no-progress --config cspell.config.yaml
+          "**/*.md" ".github/**/*.md"
+
+  import-without-numpy:
+    # `import alf` must answer format questions without pulling NumPy. Enforced
+    # in a clean environment because a test inside the dev env cannot prove it.
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+      - name: Isolated virtualenv
+        # Isolate dependencies and caches by run, attempt, and matrix job.
+        run: |
+          set -euo pipefail
+          VENV="${RUNNER_TEMP}/alf-venv-${{ github.run_id }}-${{ github.run_attempt }}-${{ github.job }}-${{ strategy.job-index || 0 }}"
+          python3 -m venv "$VENV"
+          "$VENV/bin/python" -m pip install --quiet --upgrade pip
+          echo "$VENV/bin" >> "$GITHUB_PATH"
+          echo "PIP_CACHE_DIR=${RUNNER_TEMP}/alf-pip-cache" >> "$GITHUB_ENV"
+          # Sweep venvs from earlier runs; a killed job leaves its directory behind
+          # and these accumulate until the host fills up.
+          find "${RUNNER_TEMP}" -mindepth 1 -maxdepth 1 -type d -name 'alf-venv-*' -mtime +1 \
+            -exec rm -rf -- {} + 2>/dev/null || true
+
+      - run: pip install --no-deps -e .
+      - run: |
+          python -c "
+          import sys, alf
+          assert 'numpy' not in sys.modules, 'import alf pulled NumPy'
+          print('import alf is NumPy-free')
+          "
+
+  dart:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        # THE DECLARED FLOOR AND THE NEWEST RELEASE, which is the rule `test`
+        # and `typescript` already follow and Dart was the one language not
+        # following. `dart/alf/pubspec.yaml` says `sdk: ^3.9.0` and pub.dev
+        # ENFORCES it, so a consumer on 3.9 can install this package — testing
+        # only the newest left that promise unverified, and a 3.11-only API
+        # would have shipped green while every 3.9 consumer failed at
+        # `pub get`.
+        #
+        # `dart format` runs in BOTH legs on purpose, which is the opposite of
+        # the usual advice. These sources are vendored into a monorepo that
+        # formats them with the FLOOR sdk while this repository formats them
+        # with the newest, and the two are known to disagree — 3.9.0 and 3.12.2
+        # emit different trailing-comma styles, which made one file there
+        # unformattable in any way that satisfied both gates. Requiring these
+        # files to be a fixed point of both formatters is what keeps that from
+        # arriving as somebody else's unsatisfiable CI.
+        sdk: ["3.9.0", "3.13.3"]
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+      - name: Isolated virtualenv
+        # Isolate dependencies and caches by run, attempt, and matrix job.
+        run: |
+          set -euo pipefail
+          VENV="${RUNNER_TEMP}/alf-venv-${{ github.run_id }}-${{ github.run_attempt }}-${{ github.job }}-${{ strategy.job-index || 0 }}"
+          python3 -m venv "$VENV"
+          "$VENV/bin/python" -m pip install --quiet --upgrade pip
+          echo "$VENV/bin" >> "$GITHUB_PATH"
+          echo "PIP_CACHE_DIR=${RUNNER_TEMP}/alf-pip-cache" >> "$GITHUB_ENV"
+          # Sweep venvs from earlier runs; a killed job leaves its directory behind
+          # and these accumulate until the host fills up.
+          find "${RUNNER_TEMP}" -mindepth 1 -maxdepth 1 -type d -name 'alf-venv-*' -mtime +1 \
+            -exec rm -rf -- {} + 2>/dev/null || true
+
+      - uses: dart-lang/setup-dart@v1
+        with:
+          sdk: ${{ matrix.sdk }}
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "22"
+      - run: pip install -e ".[dev]"
+      - name: Verify the checked-in conformance corpus
+        run: python tests/conformance/generate.py --verify
+      - name: Dart package dependencies
+        working-directory: dart/alf
+        run: dart pub get
+      - name: Dart format
+        working-directory: dart/alf
+        run: dart format --output=none --set-exit-if-changed .
+      - name: Dart analyze
+        working-directory: dart/alf
+        run: dart analyze
+      - name: Dart unit and regression tests
+        working-directory: dart/alf
+        run: dart test
+      - name: Build the pub.dev artifact
+        if: matrix.sdk == '3.13.3'
+        working-directory: dart/alf
+        # Validates pubspec metadata and the exact archive file set without
+        # authenticating or uploading. The floor leg already proves runtime
+        # compatibility; one current-SDK package build is the artifact gate.
+        run: dart pub publish --dry-run
+      - name: Dart VM, JavaScript, and WebAssembly runtime checks
+        working-directory: dart/alf
+        # Keep generated smoke-test artifacts in the job's own temporary
+        # directory rather than assuming a process-global `/tmp` filename.
+        run: |
+          smoke="$RUNNER_TEMP/alf-smoke-${{ matrix.sdk }}"
+          dart run tool/platform_smoke.dart
+          dart compile js tool/platform_smoke.dart -o "$smoke.js"
+          node "$smoke.js"
+          dart compile wasm tool/platform_smoke.dart -o "$smoke.wasm"
+          node tool/run_wasm.mjs "$smoke.wasm"
+      - name: Dart conformance dependencies
+        working-directory: dart/conformance
+        run: dart pub get
+      - name: Dart conformance adapter format
+        working-directory: dart/conformance
+        run: dart format --output=none --set-exit-if-changed .
+      - name: Dart conformance adapter analyze
+        working-directory: dart/conformance
+        run: dart analyze
+      - name: Conformance — Dart runner
+        run: >-
+          python tests/conformance/run.py
+          --runner "dart run dart/conformance/bin/conformance.dart"
+      - name: Writer interoperability — Dart encoded, Python decoded
+        run: >-
+          python tests/conformance/encode_roundtrip.py
+          --encoder "dart run dart/conformance/bin/encode_roundtrip.dart"
+
+  typescript:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      matrix:
+        bun-version: ["1.2.14", "1.3.11"]
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+      - name: Isolated virtualenv
+        # Isolate dependencies and caches by run, attempt, and matrix job.
+        run: |
+          set -euo pipefail
+          VENV="${RUNNER_TEMP}/alf-venv-${{ github.run_id }}-${{ github.run_attempt }}-${{ github.job }}-${{ strategy.job-index || 0 }}"
+          python3 -m venv "$VENV"
+          "$VENV/bin/python" -m pip install --quiet --upgrade pip
+          echo "$VENV/bin" >> "$GITHUB_PATH"
+          echo "PIP_CACHE_DIR=${RUNNER_TEMP}/alf-pip-cache" >> "$GITHUB_ENV"
+          # Sweep venvs from earlier runs; a killed job leaves its directory behind
+          # and these accumulate until the host fills up.
+          find "${RUNNER_TEMP}" -mindepth 1 -maxdepth 1 -type d -name 'alf-venv-*' -mtime +1 \
+            -exec rm -rf -- {} + 2>/dev/null || true
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: ${{ matrix.bun-version }}
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "22"
+      - run: pip install -e ".[dev]"
+      - name: Verify the checked-in conformance corpus
+        run: python tests/conformance/generate.py --verify
+      - name: TypeScript dependencies
+        working-directory: typescript/alf
+        run: bun install --frozen-lockfile
+      - name: TypeScript build
+        working-directory: typescript/alf
+        run: bun run build
+      - name: TypeScript lint
+        working-directory: typescript/alf
+        run: bun run lint
+      - name: TypeScript unit and regression tests
+        working-directory: typescript/alf
+        run: bun test
+      - name: Built Node ESM runtime checks
+        run: node typescript/alf/tool/platform_smoke.mjs
+      - name: Match the release npm toolchain
+        if: matrix.bun-version == '1.3.11'
+        # Packaging semantics belong to npm, not Bun. Use the same exact npm
+        # version as the release job so this gate inspects the tarball that the
+        # publisher will create rather than whatever ubuntu-latest bundles.
+        run: |
+          npm install -g npm@12.0.2
+          npm --version
+      - name: Build and inspect the npm artifact
+        if: matrix.bun-version == '1.3.11'
+        working-directory: typescript/alf
+        # `npm pack --dry-run` alone exits successfully even when every declared
+        # entry point is absent. Inspect the report so `dist`, licensing, and
+        # the package readme are properties of the tarball rather than the tree.
+        run: |
+          npm pack --dry-run --json > "$RUNNER_TEMP/npm-pack.json"
+          python - "$RUNNER_TEMP/npm-pack.json" <<'PY'
+          import json
+          import sys
+
+          with open(sys.argv[1], encoding="utf-8") as stream:
+              report = json.load(stream)
+          if isinstance(report, list):
+              package = report[0]
+          elif "files" in report:
+              package = report
+          else:
+              package = next(iter(report.values()))
+          paths = {item["path"] for item in package["files"]}
+          required = {"dist/index.js", "dist/index.d.ts", "LICENSE", "NOTICE", "README.md"}
+          missing = sorted(required - paths)
+          if missing:
+              raise SystemExit(f"npm artifact is missing: {missing}")
+          PY
+      - name: Conformance — TypeScript runner
+        run: >-
+          python tests/conformance/run.py
+          --runner "bun run typescript/conformance/read.ts"
+      - name: Writer interoperability — TypeScript encoded, Python decoded
+        run: >-
+          python tests/conformance/encode_roundtrip.py
+          --encoder "bun run typescript/conformance/roundtrip.ts"
+
+  interoperability:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+      - name: Isolated virtualenv
+        run: |
+          python -m venv "$RUNNER_TEMP/alf-interop-venv"
+          echo "$RUNNER_TEMP/alf-interop-venv/bin" >> "$GITHUB_PATH"
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: "1.3.11"
+      - uses: dart-lang/setup-dart@v1
+        with:
+          sdk: "3.13.3"
+      - uses: dtolnay/rust-toolchain@683b588c487a69d01f6c6ddf40f036ff682cc2c8 # master
+        with:
+          toolchain: "1.98.0"
+      - run: pip install -e ".[dev]"
+      - run: python tests/conformance/generate.py --verify
+      - working-directory: typescript/alf
+        run: bun install --frozen-lockfile
+      - working-directory: dart/conformance
+        run: |
+          dart pub get
+          dart compile exe bin/conformance.dart -o "$RUNNER_TEMP/alf-reader"
+          dart compile exe bin/encode_roundtrip.dart -o "$RUNNER_TEMP/alf-writer"
+      - run: cargo build --release --manifest-path rust/alf/Cargo.toml --bin alf-conformance
+      - name: Every writer's output through every reader
+        # Python first checks exact payload meaning, metadata, and error bounds.
+        # Each other SDK then reads those same candidate bytes in isolation.
+        run: |
+          for encoder in \
+            "python tests/conformance/runners/python_encode_roundtrip.py" \
+            "$RUNNER_TEMP/alf-writer" \
+            "bun run typescript/conformance/roundtrip.ts"; do
+            echo "Checking writer: $encoder"
+            python tests/conformance/encode_roundtrip.py \
+              --encoder "$encoder" \
+              --reader "$RUNNER_TEMP/alf-reader" \
+              --reader "bun run typescript/conformance/read.ts" \
+              --reader "rust/alf/target/release/alf-conformance"
+          done
+
+  rust:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+      - name: Isolated virtualenv
+        # Isolate dependencies and caches by run, attempt, and matrix job.
+        run: |
+          set -euo pipefail
+          VENV="${RUNNER_TEMP}/alf-venv-${{ github.run_id }}-${{ github.run_attempt }}-${{ github.job }}-${{ strategy.job-index || 0 }}"
+          python3 -m venv "$VENV"
+          "$VENV/bin/python" -m pip install --quiet --upgrade pip
+          echo "$VENV/bin" >> "$GITHUB_PATH"
+          echo "PIP_CACHE_DIR=${RUNNER_TEMP}/alf-pip-cache" >> "$GITHUB_ENV"
+          # Sweep venvs from earlier runs; a killed job leaves its directory behind
+          # and these accumulate until the host fills up.
+          find "${RUNNER_TEMP}" -mindepth 1 -maxdepth 1 -type d -name 'alf-venv-*' -mtime +1 \
+            -exec rm -rf -- {} + 2>/dev/null || true
+
+      # Keep the compiler separate from the action revision: upstream creates
+      # future version tags before rustup can install those releases.
+      - uses: dtolnay/rust-toolchain@683b588c487a69d01f6c6ddf40f036ff682cc2c8 # master
+        with:
+          toolchain: "1.98.0"
+          components: clippy, rustfmt
+          # wasm32 is the reason this crate exists: a WebAssembly consumer binds
+          # to it, so a dependency that cannot cross-compile is a break we must
+          # find here rather than there.
+          targets: wasm32-unknown-unknown
+      # Add build caching only after measuring its effect on total job time,
+      # including the post-job cache upload.
+      - run: pip install -e ".[dev]"
+      - name: Verify the checked-in conformance corpus
+        run: python tests/conformance/generate.py --verify
+      - name: Rust format
+        working-directory: rust/alf
+        run: cargo fmt --check
+      - name: Rust lint
+        working-directory: rust/alf
+        run: cargo clippy --release --all-targets -- -D warnings
+      - name: Rust build
+        working-directory: rust/alf
+        run: cargo build --release
+      # `cargo test`, which nothing ran until now: `clippy --all-targets`
+      # COMPILES the test targets and never executes them, so `geometry.rs`'s
+      # unit tests had been green by assumption since they were written. The
+      # conformance runner covers the wire rules; these cover the ones that have
+      # no file to point at — a header-only read agreeing with a full read, and
+      # the fixed-point edges around the invalid-return sentinel.
+      - name: Rust tests
+        working-directory: rust/alf
+        run: cargo test --all-targets
+      - name: Build the crates.io artifact
+        working-directory: rust/alf
+        # `cargo package` performs Cargo's publish verification and builds the
+        # `.crate` without uploading it. Inspect Cargo's own package list
+        # first so a future include/exclude rule cannot drop notices or the API.
+        run: |
+          cargo package --list > "$RUNNER_TEMP/cargo-package-files.txt"
+          for required in Cargo.toml LICENSE NOTICE src/lib.rs; do
+            grep -Fx -- "$required" "$RUNNER_TEMP/cargo-package-files.txt"
+          done
+          cargo package
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "22"
+      - name: Rust builds and executes count and geometry checks on wasm32
+        working-directory: rust/alf
+        run: |
+          cargo check --lib --target wasm32-unknown-unknown
+          cargo build --locked --release --example portable_runtime --target wasm32-unknown-unknown
+          node tool/portable_runtime.mjs
+      - name: Conformance — Rust runner
+        run: >-
+          python tests/conformance/run.py
+          --runner "rust/alf/target/release/alf-conformance"
+      - name: Panic safety — a malformed file refuses, never crashes
+        run: python -m pytest tests/test_rust_panic_safety.py -q

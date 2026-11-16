@@ -1,0 +1,4 @@
+{
+  "refused": "label-layout-ambiguous",
+  "why": "An empty counted payload fits both one-byte and three-byte label strides, so it cannot resolve disagreeing version signals."
+}

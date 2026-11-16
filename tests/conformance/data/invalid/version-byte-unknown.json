@@ -1,0 +1,4 @@
+{
+  "refused": "version-unsupported",
+  "why": "A version byte nobody has defined cannot be guessed at; the payload layout is exactly what it selects."
+}

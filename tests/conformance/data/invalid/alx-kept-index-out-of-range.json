@@ -1,0 +1,4 @@
+{
+  "refused": "kept-index-out-of-range",
+  "why": "An index at or beyond the source count makes export address data outside the authoritative cloud."
+}

@@ -1,0 +1,4 @@
+{
+  "refused": "header-not-an-object",
+  "why": "Geometry token inspection must not replace the root-object refusal merely because this otherwise valid array header belongs to .alp."
+}

@@ -1,0 +1,4 @@
+{
+  "refused": "geom-number-inexact",
+  "why": "An expanded exponent-zero scale states an exact mathematical integer; accepting its rounded binary64 changes every non-zero decoded component."
+}

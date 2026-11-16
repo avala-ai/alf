@@ -1,0 +1,4 @@
+{
+  "refused": "geom-number-inexact",
+  "why": "A non-finite decoded anchor axis cannot place a frame; classifying its rounded shape instead hides the geometry-token fault."
+}

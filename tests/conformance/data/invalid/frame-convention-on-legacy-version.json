@@ -1,0 +1,4 @@
+{
+  "refused": "frame-convention-on-legacy-version",
+  "why": "Readers apply no rotation to v1 geometry, so a v1 file declaring `device-aligned` states a promise the format does not keep; the producer believes a rotation will be undone and it will not be."
+}

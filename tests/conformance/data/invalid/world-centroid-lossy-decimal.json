@@ -1,0 +1,4 @@
+{
+  "refused": "geom-number-inexact",
+  "why": "A world centroid whose stated decimal precision disappears in binary64 misplaces the complete aerial frame."
+}

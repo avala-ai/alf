@@ -1,0 +1,14 @@
+{
+  "codec": "int16",
+  "extension": "alp",
+  "frame_convention": "world-aligned",
+  "max_geom_error_m": 9.223372036854776e+18,
+  "points": [
+    [
+      1.8446744073709552e+19,
+      0.0,
+      0.0
+    ]
+  ],
+  "version": 3
+}

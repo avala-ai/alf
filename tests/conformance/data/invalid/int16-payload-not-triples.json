@@ -1,0 +1,4 @@
+{
+  "refused": "payload-not-whole-points",
+  "why": "A payload that is not a whole number of XYZ triples is truncated; decoding the prefix silently drops the rest of the frame."
+}

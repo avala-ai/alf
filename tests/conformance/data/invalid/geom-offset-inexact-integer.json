@@ -1,0 +1,4 @@
+{
+  "refused": "geom-number-inexact",
+  "why": "Rounding an integer geometry offset outside binary64's exact range moves every point onto a grid different from the one the file declares."
+}

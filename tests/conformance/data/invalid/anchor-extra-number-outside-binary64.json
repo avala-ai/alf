@@ -1,0 +1,4 @@
+{
+  "refused": "header-not-json",
+  "why": "Numeric members beyond an anchor object's x/y/z axes remain application metadata and must still fit the shared finite-binary64 JSON domain."
+}

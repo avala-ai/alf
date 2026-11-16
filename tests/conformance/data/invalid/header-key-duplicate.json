@@ -1,0 +1,4 @@
+{
+  "refused": "header-key-duplicate",
+  "why": "JSON parsers disagree on which duplicate object member wins; accepting one makes the same ALF bytes declare different metadata across languages."
+}

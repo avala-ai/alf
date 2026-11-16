@@ -1,0 +1,4 @@
+{
+  "refused": "payload-length-mismatch",
+  "why": "Narrowing the declared count to a 32-bit allocation index turns it into zero, hiding a missing sidecar payload and breaking channel correlation."
+}

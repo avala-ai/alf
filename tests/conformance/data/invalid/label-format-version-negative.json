@@ -1,0 +1,4 @@
+{
+  "refused": "label-layout-unsupported",
+  "why": "A negative integral layout token is syntactically an integer but names no supported label layout."
+}

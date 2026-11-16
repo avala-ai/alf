@@ -1,0 +1,4 @@
+{
+  "refused": "geometry-anchor-malformed",
+  "why": "A geometry anchor without all three axes cannot place the frame and must be refused during the envelope read rather than only when an accessor is called."
+}

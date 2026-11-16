@@ -1,0 +1,14 @@
+{
+  "codec": "fp16",
+  "extension": "alp",
+  "frame_convention": null,
+  "max_geom_error_m": 2.9802e-08,
+  "points": [
+    [
+      "NaN",
+      "NaN",
+      "NaN"
+    ]
+  ],
+  "version": 1
+}

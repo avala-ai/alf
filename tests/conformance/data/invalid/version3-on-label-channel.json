@@ -1,0 +1,4 @@
+{
+  "refused": "geometry-version-on-non-geometry-channel",
+  "why": "v3 is the .alp geometry codec. On .all it would fall through to the v1 accessors and hand back coordinates as category bytes."
+}

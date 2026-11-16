@@ -1,0 +1,9 @@
+{
+  "extension": "ali",
+  "intensity": [
+    0,
+    127,
+    255
+  ],
+  "version": 1
+}

@@ -1,0 +1,76 @@
+version: "0.2"
+ignorePaths:
+  # Dependencies are somebody else's prose. This gate is about the documents
+  # this repository writes.
+  - "**/node_modules/**"
+  - "website/build/**"
+  - "website/.docusaurus/**"
+  - "tests/conformance/data/**"
+# en-GB as well as en: this repository spells "colour", "behaviour" and
+# "normalise/normalize" inconsistently on purpose — the header field is
+# `palette` and the prose around it is British — and forcing one would rewrite
+# the specification to settle a question about English rather than about ALF.
+language: en,en-GB
+words:
+  # Format vocabulary
+  - alp
+  - ali
+  - alc
+  - alx
+  - epsg
+  - COPC
+  - codepoint
+  - significand
+  - significand's
+  - quantises
+  - underflows
+  - unrepresentable
+  - unparseable
+  - desynchronise
+  - misattributes
+  - misaligns
+  - conformantly
+  - unadopted
+  - millimetres
+  # Wire and transport
+  - FHCRC
+  - ISIZE
+  - flate
+  - serde
+  - geospatial
+  # Language and library names that appear in prose
+  - pytest
+  - isort
+  - octree
+  - RGBD
+  - unmigrated
+  - numpy
+  - dtype
+  - asarray
+  - isnan
+  - bytearray
+  - memoryview
+  - dataclass
+  - botocore
+  # The organization
+  - avala
+  # British spellings the dictionaries above do not all carry
+  - behaviours
+  - colour
+  - colouring
+  - recognised
+  - unrecognised
+  - travelling
+ignoreRegExpList:
+  # `Array of Local **P**oints` bolds one letter to spell out a suffix, which
+  # leaves a checker reading "oints", "ntensity" and "abels". The bold can sit
+  # mid-word too — `inde**X**es` — so the pattern takes what is on both sides of
+  # it. The construction is the point of the table, so the fragments are ignored
+  # rather than added to a dictionary one at a time.
+  - /[A-Za-z]*\*\*[A-Za-z]\*\*[a-z]*/
+  # Inline code and fenced blocks are identifiers and wire bytes, not prose.
+  - /`[^`]*`/
+  - /^```[\s\S]*?^```/gm
+  # Link targets.
+  - /\]\([^)]*\)/
+  - /^\[[^\]]+\]:.*$/gm

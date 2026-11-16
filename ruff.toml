@@ -1,0 +1,70 @@
+# Lint configuration for the whole repository.
+#
+# It lives at the root, and the version is pinned wherever ruff is installed,
+# because a linter that floats is a CI job that turns red without anyone
+# changing a line of code.
+#
+# Ruff replaced black + isort + flake8, which this project declared as dev
+# dependencies and never ran: every other language here had a lint gate and
+# Python — the reference implementation — had none. One tool is also one
+# version to pin instead of three to keep in step.
+line-length = 120
+target-version = "py311"
+# Exclusions apply to explicitly named paths too, so `ruff format path/to.md`
+# skips it rather than quietly overriding the rule below.
+force-exclude = true
+
+[lint]
+select = ["E", "F", "W", "I", "UP", "B", "RUF", "PL", "EXE"]
+ignore = [
+  # The conformance harness and runners must extend sys.path before importing
+  # the package under test, which is exactly what E402 forbids.
+  "E402",
+  # A binary format is made of magic numbers and records with many fields;
+  # these rules would only be satisfied by hiding that, not by improving it.
+  "PLR0913", # too many arguments
+  "PLR0917", # too many positional arguments
+  "PLR2004", # magic value in comparison
+  # The codec's decode and validation paths are long and linear on purpose.
+  # Cutting them into helpers to satisfy a counter would scatter one readable
+  # sequence across six call sites; the complexity is in the format, not in the
+  # code, and this repository's comments exist to carry that complexity rather
+  # than hide it.
+  "PLR0912", # too many branches
+  "PLR0915", # too many statements
+  "PLR0911", # too many return statements
+  # Deferred imports are load-bearing here: `import alf` must not pull NumPy,
+  # which is enforced by a CI job in a clean environment.
+  "PLC0415",
+]
+
+[lint.per-file-ignores]
+# The generator and the runners are scripts: they take a path and print.
+"tests/conformance/*.py" = ["T201"]
+"tests/conformance/runners/*.py" = ["T201"]
+# Every invalid case carries a one-line `why` recording what goes wrong if a
+# reader lets it through. They are prose, one string per case, and wrapping them
+# to a column would make the list harder to scan for exactly the thing it exists
+# to be scanned for.
+"tests/conformance/generator/invalid.py" = ["E501"]
+# `with pytest.raises(...): read_alf(path).xyz` is not a useless expression --
+# the attribute access IS the assertion, because these are properties that
+# refuse. Assigning to a throwaway name to satisfy the rule would add 80 unused
+# variables and say less.
+"tests/test_io.py" = ["B018"]
+# `__all__` is DERIVED from the lazy re-export set, which is the point: a literal
+# list would be a second copy to keep in step with it, and the drift would be
+# silent. PLE0605/RUF005 both want a literal here.
+"python/alf/__init__.py" = ["PLE0605", "RUF005"]
+
+[format]
+# MARKDOWN IS NOT FORMATTED HERE, and the exclusion is the point rather than an
+# oversight. Ruff reformats Python code blocks inside `.md`, and the guides use
+# aligned trailing comments as a readable column:
+#
+#     alf.xyz                 # (N, 3) float64, LOCAL to device_position
+#     alf.total_points        # header-declared count, when present
+#
+# Collapsing those to one space is correct for code and wrong for a table
+# someone reads down. Prettier owns the prose; this owns the source.
+exclude = ["*.md"]
